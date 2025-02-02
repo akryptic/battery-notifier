@@ -1,0 +1,15 @@
+[package]
+name = "battery-notifier"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+toml = "0.7"
+serde = { version = "1.0", features = ["derive"] }
+notify-rust = "4"
+
+[profile.release]
+strip = true
+opt-level = "s"
+lto = true
+codegen-units = 1

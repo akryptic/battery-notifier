@@ -32,6 +32,9 @@ cargo build --release
 sudo mv target/release/battery-notifier /usr/local/bin/
 ```
 
+### Reducing binary size
+To reduce the binary size, you can use `UPX`. UPX is a free, portable, extendable, high-performance executable packer. For more details on how to use UPX, please refer to its [GitHub repository](https://github.com/upx/upx).
+
 ## Configuration
 Battery Notifier uses a configuration file located at:
 ```

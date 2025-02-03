@@ -11,6 +11,7 @@ pub struct Config {
     pub sound_volume: u8,
     pub check_interval: u64,
     pub ntfy_topic: Option<String>,
+    pub ntfy_server: String,
 }
 
 impl Config {
@@ -40,6 +41,7 @@ impl Config {
             sound_volume: 100,
             check_interval: 60,
             ntfy_topic: None,
+            ntfy_server: "https://ntfy.sh".to_string(),
         }
     }
 
@@ -59,7 +61,8 @@ impl Config {
     check_interval = 60  # Time in seconds between battery status checks (min: 1, max: 300)
 
 # ntfy.sh settings (leave empty if not using ntfy)
-    ntfy_topic = ""
+	ntfy_topic = ""
+	ntfy_server = "https://ntfy.sh"
 "#;
 
         if let Err(e) = fs::create_dir_all(path.parent().unwrap()) {

@@ -24,7 +24,11 @@ fn main() {
 
         if args.contains(&"--notify".to_string()) {
             if let Some(topic) = &config.ntfy_topic {
-                send_noti_via_ntfy("This is a test ntfy notification.", topic);
+                send_noti_via_ntfy(
+                    "This is a test ntfy notification.",
+                    topic,
+                    &config.ntfy_server,
+                );
             } else {
                 eprintln!("No ntfy topic set in config.");
             }
@@ -52,7 +56,11 @@ fn main() {
                     &config,
                 );
                 if let Some(topic) = &config.ntfy_topic {
-                    send_noti_via_ntfy(&format!("Battery Low: {}% remaining.", capacity), topic);
+                    send_noti_via_ntfy(
+                        &format!("Battery Low: {}% remaining.", capacity),
+                        topic,
+                        &config.ntfy_server,
+                    );
                 }
                 notified_low = true;
             }
@@ -87,6 +95,7 @@ fn main() {
                     send_noti_via_ntfy(
                         &format!("Battery Overcharging: {}% charged.", capacity),
                         topic,
+                        &config.ntfy_server,
                     );
                 }
                 notified_overcharge = true;
@@ -148,9 +157,9 @@ fn send_notification(title: &str, message: &str, config: &Config) {
     }
 }
 
-fn send_noti_via_ntfy(message: &str, topic: &str) {
+fn send_noti_via_ntfy(message: &str, topic: &str, server: &str) {
     if !topic.is_empty() {
-        let ntfy_url = format!("https://ntfy.sh/{}", topic);
+        let ntfy_url = format!("{}/{}", server, topic);
         let result = Command::new("curl")
             .arg("-d")
             .arg(format!("{}", message))

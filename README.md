@@ -86,6 +86,40 @@ Add this line to your `hyprland.conf`:
 exec-once = battery-notifier &
 ```
 
+### Running on Startup (Systemd Example)
+
+Create a new service file at `/etc/systemd/system/battery-notifier.service`:
+
+```ini
+[Unit]
+Description=Battery Notifier Service
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/battery-notifier
+Restart=on-failure
+User=YOUR_USERNAME
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Replace `YOUR_USERNAME` with your actual username.
+
+Reload the systemd daemon and enable the service:
+
+```sh
+systemctl daemon-reload
+systemctl enable battery-notifier.service
+systemctl start battery-notifier.service
+```
+
+Check the status of the service:
+
+```sh
+systemctl status battery-notifier.service
+```
+
 ### Testing Notifications
 
 - Local notification test:

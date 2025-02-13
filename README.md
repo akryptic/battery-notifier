@@ -25,7 +25,7 @@ Battery Notifier is a simple Rust-based utility that monitors battery levels and
 
 ```sh
 # Clone the repository
-git clone https://github.com/ardentkilnfire/battery-notifier.git
+git clone https://github.com/akryptic/battery-notifier.git
 cd battery-notifier
 
 # Build the application

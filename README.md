@@ -17,7 +17,6 @@ Battery Notifier is a simple GoLang-based utility that monitors battery levels a
 ### Prerequisites
 
 - GoLang (for building from source)
-- `canberra-gtk-play` (for playing notification sounds)
 - `libnotify` (for local notifications)
 
 ### Building from Source
@@ -58,7 +57,9 @@ overcharge_limit = 80
 
 # Notification settings
 enable_sound = true
-sound_file = "/usr/share/sounds/freedesktop/stereo/bell.oga"
+low_sound_file = ""         # Optional: path to custom sound for low battery (leave empty to use default)
+overcharge_sound_file = ""  # Optional: path to custom sound for overcharge alert (leave empty to use default)
+
 sound_volume = 80  # Volume level (0-100)
 
 # Interval settings

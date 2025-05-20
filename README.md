@@ -1,6 +1,6 @@
 # Battery Notifier
 
-Battery Notifier is a simple Rust-based utility that monitors battery levels and sends notifications when the battery is low, critically low, or overcharged. It supports local notifications and optional push notifications via [ntfy.sh](https://ntfy.sh/).
+Battery Notifier is a simple GoLang-based utility that monitors battery levels and sends notifications when the battery is low, critically low, or overcharged. It supports local notifications and optional push notifications via [ntfy.sh](https://ntfy.sh/).
 
 ## Features
 
@@ -16,10 +16,9 @@ Battery Notifier is a simple Rust-based utility that monitors battery levels and
 
 ### Prerequisites
 
-- Rust (for building from source)
+- GoLang (for building from source)
 - `canberra-gtk-play` (for playing notification sounds)
 - `libnotify` (for local notifications)
-- `curl` (for ntfy.sh support)
 
 ### Building from Source
 
@@ -29,10 +28,10 @@ git clone https://github.com/akryptic/battery-notifier.git
 cd battery-notifier
 
 # Build the application
-cargo build --release
+go build -o battery-notifier
 
 # Move the binary to a directory in your PATH
-sudo mv target/release/battery-notifier /usr/local/bin/
+sudo mv battery-notifier /usr/local/bin/
 ```
 
 ### Reducing binary size
@@ -60,7 +59,7 @@ overcharge_limit = 80
 # Notification settings
 enable_sound = true
 sound_file = "/usr/share/sounds/freedesktop/stereo/bell.oga"
-sound_volume = 100  # Volume level (0-100)
+sound_volume = 80  # Volume level (0-100)
 
 # Interval settings
 check_interval = 60  # Time in seconds between battery status checks (min: 1, max: 300)
@@ -68,6 +67,7 @@ check_interval = 60  # Time in seconds between battery status checks (min: 1, ma
 # ntfy.sh settings (leave empty if not using ntfy)
 ntfy_topic = ""
 ntfy_server = "https://ntfy.sh"
+ntfy_access_token = ""
 ```
 
 ## Usage
@@ -131,7 +131,7 @@ battery-notifier --test
 - ntfy.sh test (requires `ntfy_topic` to be set in the config):
 
 ```sh
-battery-notifier --notify
+battery-notifier --ntfy
 ```
 
 - Reset config to default:

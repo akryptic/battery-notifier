@@ -13,9 +13,10 @@ type Config struct {
 	CriticalBattery int `toml:"critical_battery"`
 	OverchargeLimit int `toml:"overcharge_limit"`
 
-	EnableSound bool   `toml:"enable_sound"`
-	SoundFile   string `toml:"sound_file"`
-	SoundVolume int    `toml:"sound_volume"`
+	EnableSound         bool   `toml:"enable_sound"`
+	LowSoundFile        string `toml:"low_sound_file"`
+	OverchargeSoundFile string `toml:"overcharge_sound_file"`
+	SoundVolume         int    `toml:"sound_volume"`
 
 	CheckInterval int `toml:"check_interval"`
 
@@ -41,10 +42,6 @@ func (c *Config) Validate() string {
 
 	if c.OverchargeLimit < 0 {
 		return "Overcharge limit cannot be negative"
-	}
-
-	if c.EnableSound && c.SoundFile == "" {
-		return "Sound file cannot be empty if sound is enabled"
 	}
 
 	if c.EnableSound && c.SoundVolume < 0 {
@@ -88,9 +85,10 @@ func GetDefaultConfig() Config {
 		CriticalBattery: 10,
 		OverchargeLimit: 80,
 
-		EnableSound: true,
-		SoundFile:   "/usr/share/sounds/freedesktop/stereo/bell.oga",
-		SoundVolume: 80,
+		EnableSound:         true,
+		LowSoundFile:        "",
+		OverchargeSoundFile: "",
+		SoundVolume:         80,
 
 		CheckInterval: 60,
 

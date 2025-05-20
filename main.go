@@ -9,6 +9,7 @@ import (
 	"github.com/akryptic/battery-notifier/internal/battery"
 	"github.com/akryptic/battery-notifier/internal/config"
 	"github.com/akryptic/battery-notifier/internal/notification"
+	"github.com/akryptic/battery-notifier/internal/sound"
 )
 
 func main() {
@@ -74,12 +75,19 @@ func main() {
 	}
 
 	if *testFlag {
+		conf.NtfyTopic = ""
 		err := notification.SendNotification("Battery Notifier Test", "This is a test notification.", &conf)
 
 		if err != nil {
 			fmt.Println(err)
 		}
 
+		if conf.EnableSound {
+			err := sound.Play("low", &conf)
+			if err != nil {
+				fmt.Println(err)
+			}
+		}
 		return
 	}
 
@@ -112,6 +120,12 @@ func main() {
 			if err != nil {
 				fmt.Println(err)
 			}
+			if conf.EnableSound {
+				err := sound.Play("low", &conf)
+				if err != nil {
+					fmt.Println(err)
+				}
+			}
 			notifiedLow = true
 		}
 
@@ -129,6 +143,12 @@ func main() {
 			)
 			if err != nil {
 				fmt.Println(err)
+			}
+			if conf.EnableSound {
+				err := sound.Play("low", &conf)
+				if err != nil {
+					fmt.Println(err)
+				}
 			}
 			notifiedCritical = true
 		}
@@ -150,6 +170,12 @@ func main() {
 			)
 			if err != nil {
 				fmt.Println(err)
+			}
+			if conf.EnableSound {
+				err := sound.Play("overcharge", &conf)
+				if err != nil {
+					fmt.Println(err)
+				}
 			}
 			notifiedOvercharge = true
 		}

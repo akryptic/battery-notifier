@@ -1,31 +1,50 @@
 package battery
 
 import (
-	"os"
-	"strconv"
-	"strings"
+	bat "gioui.org/x/pref/battery"
 )
 
-func ReadCapacity() (int, error) {
-	content, err := os.ReadFile("/sys/class/power_supply/BAT0/capacity")
-	if err != nil {
-		return 0, err
-	}
+type BatteryStatus = string
 
-	capacity, err := strconv.Atoi(strings.TrimSpace(string(content)))
-	if err != nil {
-		return 0, err
-	}
+const (
+	Charging    BatteryStatus = "Charging"
+	Discharging BatteryStatus = "Discharging"
+)
 
-	return capacity, nil
+type BatteryState struct {
+	Level  int
+	Status BatteryStatus
 }
 
-func ReadStatus() (string, error) {
-	content, err := os.ReadFile("/sys/class/power_supply/BAT0/status")
+func ReadLevel() (int, error) {
+	level, err := bat.Level()
+	return int(level), err
+}
+
+func ReadStatus() (BatteryStatus, error) {
+	status, err := bat.IsCharging()
+
 	if err != nil {
 		return "", err
 	}
 
-	status := strings.TrimSpace(string(content))
-	return status, nil
+	if status {
+		return Charging, nil
+	}
+
+	return Discharging, nil
+}
+
+func ReadBatteryState() (BatteryState, error) {
+	level, err := ReadLevel()
+	if err != nil {
+		return BatteryState{}, err
+	}
+
+	status, err := ReadStatus()
+	if err != nil {
+		return BatteryState{}, err
+	}
+
+	return BatteryState{level, status}, nil
 }

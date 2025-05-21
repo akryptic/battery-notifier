@@ -30,7 +30,7 @@ func ParseArgs() (*Options, error) {
 		Help:     "Send notification via ntfy",
 	})
 
-	resetFlag := parser.Flag("r", "reset", &argparse.Options{
+	resetFlag := parser.Flag("", "reset", &argparse.Options{
 		Required: false,
 		Help:     "Reset config to default (use carefully as this will overwrite your current config)",
 	})

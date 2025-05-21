@@ -69,6 +69,8 @@ func ParseArgs() (*Options, error) {
 		}
 	}
 
+	fmt.Printf("config path: %s\n", *configPath)
+
 	return &Options{
 		Test:       *testFlag,
 		Ntfy:       *ntfyFlag,

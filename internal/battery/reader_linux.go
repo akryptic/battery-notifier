@@ -1,3 +1,9 @@
+// The code in this file is modified version of the code from the gio-x project.
+// The original code is licensed under the MIT license.
+// LINK: https://git.sr.ht/~whereswaldon/gio-x/tree/main/item/pref/battery/battery_linux.go
+// I had to modify it to make it work with /sys/class/power_supply/BAT*/status file
+// because the original code was case-sensitively checking the contents of the file to determine battery status
+
 package battery
 
 import (

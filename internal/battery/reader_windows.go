@@ -1,5 +1,9 @@
 // go:build windows
 
+// The code in this file is version of the code from the gio-x project.
+// The original code is licensed under the MIT license.
+// LINK: https://git.sr.ht/~whereswaldon/gio-x/tree/main/item/pref/battery/battery_windows.go
+
 package battery
 
 import (

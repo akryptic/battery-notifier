@@ -73,8 +73,6 @@ func (m *Monitor) ProcessNotifications() (RunType, error) {
 		return NoRun, nil
 	}
 
-	fmt.Println(m.NotifiedState)
-
 	if runType == LowBatteryRun && !m.NotifiedState.Low {
 		err := notification.SendNotification(
 			"Battery Low",

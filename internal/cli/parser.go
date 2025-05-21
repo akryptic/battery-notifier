@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/akamensky/argparse"
+	"github.com/akryptic/battery-notifier/internal/config"
 )
 
 type Options struct {
@@ -17,8 +18,6 @@ type Options struct {
 }
 
 func ParseArgs() (*Options, error) {
-	configPath := fmt.Sprintf("%s/.config/battery-notifier/config.toml", os.Getenv("HOME"))
-
 	parser := argparse.NewParser("battery-notifier", "A simple utility that monitors battery levels and sends notifications when the battery is low, critically low, or overcharged.")
 
 	testFlag := parser.Flag("t", "test", &argparse.Options{
@@ -36,7 +35,7 @@ func ParseArgs() (*Options, error) {
 		Help:     "Reset config to default (use carefully as this will overwrite your current config)",
 	})
 
-	readFlag := parser.Flag("", "read", &argparse.Options{
+	readFlag := parser.Flag("R", "read", &argparse.Options{
 		Required: false,
 		Help:     "Reads the battery status and prints it",
 	})
@@ -46,9 +45,28 @@ func ParseArgs() (*Options, error) {
 		Help:     "Dry run the notifier",
 	})
 
+	configPath := parser.String("c", "config", &argparse.Options{
+		Required: false,
+		Help:     "Path to the config file (default: <config_dir>/battery-notifier/config.toml)",
+		Validate: func(args []string) error {
+			_, err := config.Load(args[0])
+			return err
+		},
+	})
+
 	err := parser.Parse(os.Args)
 	if err != nil {
 		return nil, err
+	}
+
+	// if config path was not passed, use the default path
+	if *configPath == "" {
+		defaultConfigPath, err := config.GetDefaultConfigPath()
+
+		configPath = &defaultConfigPath
+		if err != nil {
+			return nil, fmt.Errorf("failed to get config path: %v", err)
+		}
 	}
 
 	return &Options{
@@ -57,6 +75,6 @@ func ParseArgs() (*Options, error) {
 		Reset:      *resetFlag,
 		Read:       *readFlag,
 		DryRun:     *dryRunFlag,
-		ConfigPath: configPath,
+		ConfigPath: *configPath,
 	}, nil
 }

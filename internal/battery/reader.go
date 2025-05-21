@@ -1,28 +1,12 @@
 package battery
 
-import (
-	bat "gioui.org/x/pref/battery"
-)
-
-type BatteryStatus = string
-
-const (
-	Charging    BatteryStatus = "Charging"
-	Discharging BatteryStatus = "Discharging"
-)
-
-type BatteryState struct {
-	Level  int
-	Status BatteryStatus
-}
-
 func ReadLevel() (int, error) {
-	level, err := bat.Level()
+	level, err := batteryLevel()
 	return int(level), err
 }
 
 func ReadStatus() (BatteryStatus, error) {
-	status, err := bat.IsCharging()
+	status, err := isCharging()
 
 	if err != nil {
 		return "", err

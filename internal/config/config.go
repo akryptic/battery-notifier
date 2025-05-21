@@ -119,3 +119,19 @@ func GenerateDefaultConfig(path string) Config {
 
 	return config
 }
+
+// cross-platform default path for the config file
+func GetDefaultConfigPath() (string, error) {
+	userConfigDir, err := os.UserConfigDir()
+
+	if err != nil {
+		// fallback to HOME
+		userConfigDir = os.Getenv("HOME")
+		if userConfigDir == "" {
+			return "", fmt.Errorf("couldn't determine config directory: %v", err)
+		}
+		userConfigDir = filepath.Join(userConfigDir, ".config")
+	}
+
+	return filepath.Join(userConfigDir, "battery-notifier", "config.toml"), nil
+}

@@ -46,12 +46,12 @@ func (m *Monitor) determineRunType() (RunType, battery.BatteryState, error) {
 
 	fmt.Printf("[%s] Battery: %d%% %s\n", time.Now().Format("2006-01-02 15:04:05"), batteryState.Level, batteryState.Status)
 
-	if batteryState.Level <= m.Config.LowBattery && batteryState.Status != battery.Charging {
-		return LowBatteryRun, batteryState, nil
-	}
-
 	if batteryState.Level <= m.Config.CriticalBattery && batteryState.Status != battery.Charging {
 		return CriticalBatteryRun, batteryState, nil
+	}
+
+	if batteryState.Level <= m.Config.LowBattery && batteryState.Status != battery.Charging {
+		return LowBatteryRun, batteryState, nil
 	}
 
 	if batteryState.Level >= m.Config.OverchargeLimit && batteryState.Status == battery.Charging {

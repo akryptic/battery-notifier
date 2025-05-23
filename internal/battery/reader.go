@@ -1,31 +1,34 @@
 package battery
 
-import (
-	"os"
-	"strconv"
-	"strings"
-)
-
-func ReadCapacity() (int, error) {
-	content, err := os.ReadFile("/sys/class/power_supply/BAT0/capacity")
-	if err != nil {
-		return 0, err
-	}
-
-	capacity, err := strconv.Atoi(strings.TrimSpace(string(content)))
-	if err != nil {
-		return 0, err
-	}
-
-	return capacity, nil
+func ReadLevel() (int, error) {
+	level, err := batteryLevel()
+	return int(level), err
 }
 
-func ReadStatus() (string, error) {
-	content, err := os.ReadFile("/sys/class/power_supply/BAT0/status")
+func ReadStatus() (BatteryStatus, error) {
+	status, err := isCharging()
+
 	if err != nil {
 		return "", err
 	}
 
-	status := strings.TrimSpace(string(content))
-	return status, nil
+	if status {
+		return Charging, nil
+	}
+
+	return Discharging, nil
+}
+
+func ReadBatteryState() (BatteryState, error) {
+	level, err := ReadLevel()
+	if err != nil {
+		return BatteryState{}, err
+	}
+
+	status, err := ReadStatus()
+	if err != nil {
+		return BatteryState{}, err
+	}
+
+	return BatteryState{level, status}, nil
 }

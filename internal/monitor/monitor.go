@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/akryptic/battery-notifier/internal/battery"
@@ -41,20 +42,24 @@ func NewMonitor(conf *config.Config) *Monitor {
 func (m *Monitor) determineRunType() (RunType, battery.BatteryState, error) {
 	batteryState, err := battery.ReadBatteryState()
 	if err != nil {
+		log.Printf("ERROR: Failed to read battery state: %v", err)
 		return NoRun, batteryState, err
 	}
 
 	fmt.Printf("[%s] Battery: %d%% %s\n", time.Now().Format("2006-01-02 15:04:05"), batteryState.Level, batteryState.Status)
 
 	if batteryState.Level <= m.Config.CriticalBattery && batteryState.Status != battery.Charging {
+		log.Printf("CRITICAL: Battery critically low (%d%% <= %d%%)", batteryState.Level, m.Config.CriticalBattery)
 		return CriticalBatteryRun, batteryState, nil
 	}
 
 	if batteryState.Level <= m.Config.LowBattery && batteryState.Status != battery.Charging {
+		log.Printf("WARNING: Battery low (%d%% <= %d%%)", batteryState.Level, m.Config.LowBattery)
 		return LowBatteryRun, batteryState, nil
 	}
 
 	if batteryState.Level >= m.Config.OverchargeLimit && batteryState.Status == battery.Charging {
+		log.Printf("WARNING: Battery overcharging (%d%% >= %d%%)", batteryState.Level, m.Config.OverchargeLimit)
 		return OverchargeLimitRun, batteryState, nil
 	}
 
@@ -66,6 +71,7 @@ func (m *Monitor) ProcessNotifications() (RunType, error) {
 	runType, batteryState, err := m.determineRunType()
 
 	if err != nil {
+		log.Printf("ERROR: Failed to determine run type: %v", err)
 		return NoRun, err
 	}
 
@@ -74,23 +80,26 @@ func (m *Monitor) ProcessNotifications() (RunType, error) {
 	}
 
 	if runType == LowBatteryRun && !m.NotifiedState.Low {
+		log.Printf("Sending low battery notification (%d%%)", batteryState.Level)
 		err := notification.SendNotification(
 			"Battery Low",
 			fmt.Sprintf("%d%% remaining. Please plug in.", batteryState.Level),
 			m.Config,
 		)
 		if err != nil {
+			log.Printf("ERROR: Failed to send low battery notification: %v", err)
 			return NoRun, err
 		}
+
 		if m.Config.EnableSound {
 			err := sound.Play("low", m.Config)
 			if err != nil {
-				return NoRun, err
+				log.Printf("WARNING: Failed to play low battery sound: %v", err)
+				// continue even if sound fails
 			}
 		}
 
 		m.NotifiedState.Low = true
-
 		return LowBatteryRun, nil
 	}
 
@@ -100,23 +109,26 @@ func (m *Monitor) ProcessNotifications() (RunType, error) {
 	}
 
 	if runType == CriticalBatteryRun && !m.NotifiedState.Critical {
+		log.Printf("Sending critical battery notification (%d%%)", batteryState.Level)
 		err := notification.SendNotification(
 			"Battery Critically Low",
 			fmt.Sprintf("%d%% remaining! System may shut down.", batteryState.Level),
 			m.Config,
 		)
 		if err != nil {
+			log.Printf("ERROR: Failed to send critical battery notification: %v", err)
 			return NoRun, err
 		}
+
 		if m.Config.EnableSound {
 			err := sound.Play("low", m.Config)
 			if err != nil {
-				return NoRun, nil
+				log.Printf("WARNING: Failed to play critical battery sound: %v", err)
+				// continue even if sound fails
 			}
 		}
 
 		m.NotifiedState.Critical = true
-
 		return CriticalBatteryRun, nil
 	}
 
@@ -126,6 +138,7 @@ func (m *Monitor) ProcessNotifications() (RunType, error) {
 	}
 
 	if runType == OverchargeLimitRun && !m.NotifiedState.Overcharge {
+		log.Printf("Sending overcharge notification (%d%%)", batteryState.Level)
 		err := notification.SendNotification(
 			"Battery Overcharging",
 			fmt.Sprintf(
@@ -135,17 +148,19 @@ func (m *Monitor) ProcessNotifications() (RunType, error) {
 			m.Config,
 		)
 		if err != nil {
+			log.Printf("ERROR: Failed to send overcharge notification: %v", err)
 			return NoRun, nil
 		}
+
 		if m.Config.EnableSound {
 			err := sound.Play("overcharge", m.Config)
 			if err != nil {
-				return NoRun, nil
+				log.Printf("WARNING: Failed to play overcharge sound: %v", err)
+				// continue even if sound fails
 			}
 		}
 
 		m.NotifiedState.Overcharge = true
-
 		return OverchargeLimitRun, nil
 	}
 
@@ -159,9 +174,12 @@ func (m *Monitor) ProcessNotifications() (RunType, error) {
 
 // continuous monitoring of battery state
 func (m *Monitor) StartMonitoring() {
+	log.Printf("Starting battery monitoring with %d second intervals", m.Config.CheckInterval)
+
 	for {
 		runType, err := m.ProcessNotifications()
 		if err != nil {
+			log.Printf("ERROR: Monitoring failed: %v", err)
 			fmt.Println(err)
 			return
 		}
@@ -173,5 +191,10 @@ func (m *Monitor) StartMonitoring() {
 
 // dry-run
 func (m *Monitor) RunOnce() (RunType, error) {
-	return m.ProcessNotifications()
+	log.Println("Running battery check (dry-run mode)")
+	runType, err := m.ProcessNotifications()
+	if err != nil {
+		log.Printf("ERROR: Dry-run failed: %v", err)
+	}
+	return runType, err
 }

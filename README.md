@@ -116,18 +116,25 @@ Create a new service file at `/etc/systemd/system/battery-notifier.service`:
 ```ini
 [Unit]
 Description=Battery Notifier Service
-After=network.target
+After=network.target sound.target
 
 [Service]
+Environment=DISPLAY=:0
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/YOUR_USER_ID/bus
+Environment=XDG_RUNTIME_DIR=/run/user/YOUR_USER_ID
 ExecStart=/usr/local/bin/battery-notifier
 Restart=on-failure
 User=YOUR_USERNAME
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=graphical.target
 ```
 
-Replace `YOUR_USERNAME` with your actual username.
+Replace `YOUR_USERNAME` with your actual username, and `YOUR_USER_ID` with your user ID. You can find your user ID by running:
+
+```sh
+id -u
+```
 
 Reload the systemd daemon and enable the service:
 
@@ -142,6 +149,8 @@ Check the status of the service:
 ```sh
 systemctl status battery-notifier.service
 ```
+
+> **Note**: This systemd configuration is specific to the user specified in the service file. If you have multiple users who need battery notifications, you'll either need to create separate service files for each user or consider using user-specific systemd services instead.
 
 #### Windows (Task Scheduler)
 

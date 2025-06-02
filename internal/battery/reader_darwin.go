@@ -68,7 +68,9 @@ func batteryLevel() (uint8, error) {
 		return 0, ErrNoSystemBattery
 	}
 
-	return uint8(batts[0].CurrentCapacity / batts[0].MaxCapacity * 100), nil
+    cap := uint8(float64(batts[0].CurrentCapacity) / float64(batts[0].MaxCapacity) * 100)
+
+	return cap, nil
 }
 
 func isCharging() (bool, error) {

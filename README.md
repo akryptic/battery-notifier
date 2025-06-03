@@ -207,6 +207,9 @@ battery-notifier --reset
 
 # Execute a single check without continuous monitoring
 battery-notifier --dry-run
+
+# Run with verbose logging for debugging
+battery-notifier --verbose 2
 ```
 
 ## License

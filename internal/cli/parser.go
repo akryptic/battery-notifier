@@ -3,18 +3,21 @@ package cli
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/akamensky/argparse"
 	"github.com/akryptic/battery-notifier/internal/config"
+	"github.com/akryptic/battery-notifier/internal/logging"
 )
 
 type Options struct {
-	Test       bool
-	Ntfy       bool
-	Reset      bool
-	Read       bool
-	DryRun     bool
-	ConfigPath string
+	Test         bool
+	Ntfy         bool
+	Reset        bool
+	Read         bool
+	DryRun       bool
+	ConfigPath   string
+	VerboseLevel int
 }
 
 func ParseArgs() (*Options, error) {
@@ -54,10 +57,31 @@ func ParseArgs() (*Options, error) {
 		},
 	})
 
+	verboseLevel := parser.Int("v", "verbose", &argparse.Options{
+		Required: false,
+		Help:     "Verbose logging level (0=quiet, 1=info, 2=debug, 3=trace)",
+		Default:  1,
+		Validate: func(args []string) error {
+			if len(args) > 0 {
+				levelString := args[0]
+				level, err := strconv.Atoi(levelString)
+				if err != nil {
+					return fmt.Errorf("verbose level must be an integer")
+				}
+				if level < 0 || level > 3 {
+					return fmt.Errorf("verbose level must be between 0 and 3")
+				}
+			}
+			return nil
+		},
+	})
+
 	err := parser.Parse(os.Args)
 	if err != nil {
 		return nil, err
 	}
+
+	logging.SetLevel(*verboseLevel)
 
 	// if config path was not passed, use the default path
 	if *configPath == "" {
@@ -69,14 +93,13 @@ func ParseArgs() (*Options, error) {
 		}
 	}
 
-	fmt.Printf("config path: %s\n", *configPath)
-
 	return &Options{
-		Test:       *testFlag,
-		Ntfy:       *ntfyFlag,
-		Reset:      *resetFlag,
-		Read:       *readFlag,
-		DryRun:     *dryRunFlag,
-		ConfigPath: *configPath,
+		Test:         *testFlag,
+		Ntfy:         *ntfyFlag,
+		Reset:        *resetFlag,
+		Read:         *readFlag,
+		DryRun:       *dryRunFlag,
+		ConfigPath:   *configPath,
+		VerboseLevel: *verboseLevel,
 	}, nil
 }

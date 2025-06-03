@@ -68,7 +68,7 @@ func batteryLevel() (uint8, error) {
 		return 0, ErrNoSystemBattery
 	}
 
-    cap := uint8(float64(batts[0].CurrentCapacity) / float64(batts[0].MaxCapacity) * 100)
+	cap := uint8(float64(batts[0].CurrentCapacity) / float64(batts[0].MaxCapacity) * 100)
 
 	return cap, nil
 }

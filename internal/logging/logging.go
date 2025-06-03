@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"runtime"
 	"time"
 )
 
@@ -36,7 +38,34 @@ func SetLevel(level int) {
 }
 
 func formatMessage(level string, msg string) string {
-	return fmt.Sprintf("[%s] [%s] %s", time.Now().Format("2006-01-02 15:04:05.000"), level, msg)
+	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
+
+	// Base format with just timestamp and level
+	baseFormat := fmt.Sprintf("[%s] [%s]", timestamp, level)
+
+	// Add location info based on current log level
+	if currentLevel >= LevelDebug {
+		pc, file, line, ok := runtime.Caller(2)
+		if ok {
+			if currentLevel >= LevelTrace {
+				// Include file, line, and function name for TRACE level
+				funcName := runtime.FuncForPC(pc).Name()
+				// Extract just the function name (remove package path)
+				if lastSlash := filepath.Base(funcName); lastSlash != "" {
+					funcName = lastSlash
+				}
+				location := fmt.Sprintf("%s:%d:%s", filepath.Base(file), line, funcName)
+				return fmt.Sprintf("%s [%s] %s", baseFormat, location, msg)
+			} else {
+				// Include only file and line for DEBUG level
+				location := fmt.Sprintf("%s:%d", filepath.Base(file), line)
+				return fmt.Sprintf("%s [%s] %s", baseFormat, location, msg)
+			}
+		}
+	}
+
+	// For INFO level and below, just timestamp, level, and message
+	return fmt.Sprintf("%s %s", baseFormat, msg)
 }
 
 func Info(msg string, args ...interface{}) {

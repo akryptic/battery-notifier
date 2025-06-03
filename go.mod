@@ -8,6 +8,7 @@ require (
 	github.com/faiface/beep v1.1.0
 	github.com/gen2brain/beeep v0.0.0-20240516210008-9c006672e7f4
 	golang.org/x/sys v0.33.0
+	howett.net/plist v1.0.1
 )
 
 require (

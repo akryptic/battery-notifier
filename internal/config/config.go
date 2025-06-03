@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
+	"github.com/akryptic/battery-notifier/internal/logging"
 )
 
 type Config struct {
@@ -69,8 +70,11 @@ func (c *Config) Validate() string {
 
 func Load(path string) (config Config, err error) {
 
+	logging.Trace("Loading configuration from: %s", path)
+
 	// if config file doesn't exist, generate a default config and return
 	if _, err := os.Stat(path); os.IsNotExist(err) {
+		logging.Debug("Config file does not exist, generating default config at: %s", path)
 		config := GenerateDefaultConfig(path)
 		return config, nil
 	}
@@ -80,6 +84,7 @@ func Load(path string) (config Config, err error) {
 }
 
 func GetDefaultConfig() Config {
+	logging.Trace("Creating default configuration values")
 	return Config{
 		LowBattery:      20,
 		CriticalBattery: 10,
@@ -99,19 +104,25 @@ func GetDefaultConfig() Config {
 }
 
 func GenerateDefaultConfig(path string) Config {
+	logging.Trace("Generating default configuration at: %s", path)
+
 	config := GetDefaultConfig()
 
 	dir := filepath.Dir(path)
+
+	logging.Debug("Creating config directory: %s", dir)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		panic(err)
 	}
 
 	file, err := os.Create(path)
+	logging.Trace("Creating config file")
 	if err != nil {
 		panic(err)
 	}
 	defer file.Close()
 
+	logging.Trace("Writing default config to file")
 	err = toml.NewEncoder(file).Encode(config)
 	if err != nil {
 		panic(err)
@@ -122,9 +133,12 @@ func GenerateDefaultConfig(path string) Config {
 
 // cross-platform default path for the config file
 func GetDefaultConfigPath() (string, error) {
+	logging.Trace("Determining default config path")
+
 	userConfigDir, err := os.UserConfigDir()
 
 	if err != nil {
+		logging.Warn("Failed to get user config dir, falling back to HOME. Error: %v", err)
 		// fallback to HOME
 		userConfigDir = os.Getenv("HOME")
 		if userConfigDir == "" {
@@ -133,5 +147,9 @@ func GetDefaultConfigPath() (string, error) {
 		userConfigDir = filepath.Join(userConfigDir, ".config")
 	}
 
-	return filepath.Join(userConfigDir, "battery-notifier", "config.toml"), nil
+	configPath := filepath.Join(userConfigDir, "battery-notifier", "config.toml")
+
+	logging.Debug("Default config path determined: %s", configPath)
+
+	return configPath, nil
 }

@@ -2,11 +2,11 @@ package monitor
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/akryptic/battery-notifier/internal/battery"
 	"github.com/akryptic/battery-notifier/internal/config"
+	"github.com/akryptic/battery-notifier/internal/logging"
 	"github.com/akryptic/battery-notifier/internal/notification"
 	"github.com/akryptic/battery-notifier/internal/sound"
 )
@@ -33,6 +33,8 @@ type Monitor struct {
 }
 
 func NewMonitor(conf *config.Config) *Monitor {
+	logging.Trace("Creating new monitor with config: LowBattery=%d, Critical=%d, Overcharge=%d",
+		conf.LowBattery, conf.CriticalBattery, conf.OverchargeLimit)
 	return &Monitor{
 		Config:        conf,
 		NotifiedState: &NotifiedState{false, false, false},
@@ -42,24 +44,24 @@ func NewMonitor(conf *config.Config) *Monitor {
 func (m *Monitor) determineRunType() (RunType, battery.BatteryState, error) {
 	batteryState, err := battery.ReadBatteryState()
 	if err != nil {
-		log.Printf("ERROR: Failed to read battery state: %v", err)
+		logging.Error("Failed to read battery state: %v", err)
 		return NoRun, batteryState, err
 	}
 
-	fmt.Printf("[%s] Battery: %d%% %s\n", time.Now().Format("2006-01-02 15:04:05"), batteryState.Level, batteryState.Status)
+	logging.Debug("Battery: %d%% %s", batteryState.Level, batteryState.Status)
 
 	if batteryState.Level <= m.Config.CriticalBattery && batteryState.Status != battery.Charging {
-		log.Printf("CRITICAL: Battery critically low (%d%% <= %d%%)", batteryState.Level, m.Config.CriticalBattery)
+		logging.Debug("CRITICAL: Battery critically low (%d%% <= %d%%)", batteryState.Level, m.Config.CriticalBattery)
 		return CriticalBatteryRun, batteryState, nil
 	}
 
 	if batteryState.Level <= m.Config.LowBattery && batteryState.Status != battery.Charging {
-		log.Printf("WARNING: Battery low (%d%% <= %d%%)", batteryState.Level, m.Config.LowBattery)
+		logging.Debug("LOW: Battery low (%d%% <= %d%%)", batteryState.Level, m.Config.LowBattery)
 		return LowBatteryRun, batteryState, nil
 	}
 
 	if batteryState.Level >= m.Config.OverchargeLimit && batteryState.Status == battery.Charging {
-		log.Printf("WARNING: Battery overcharging (%d%% >= %d%%)", batteryState.Level, m.Config.OverchargeLimit)
+		logging.Debug("OVERCHARGING: Battery overcharging (%d%% >= %d%%)", batteryState.Level, m.Config.OverchargeLimit)
 		return OverchargeLimitRun, batteryState, nil
 	}
 
@@ -68,103 +70,129 @@ func (m *Monitor) determineRunType() (RunType, battery.BatteryState, error) {
 
 // handles notification state and sending notifications
 func (m *Monitor) ProcessNotifications() (RunType, error) {
+
+	logging.Trace("Processing notifications")
+
 	runType, batteryState, err := m.determineRunType()
 
+	logging.Trace("Run: %s", runType)
+	logging.Trace("Battery state: %+v", batteryState)
+	logging.Trace("Notified state: %+v", m.NotifiedState)
+
 	if err != nil {
-		log.Printf("ERROR: Failed to determine run type: %v", err)
+		logging.Error("Failed to determine run type: %v", err)
 		return NoRun, err
 	}
 
 	if runType == NoRun {
+		logging.Trace("No notifications needed")
 		return NoRun, nil
 	}
 
-	if runType == LowBatteryRun && !m.NotifiedState.Low {
-		log.Printf("Sending low battery notification (%d%%)", batteryState.Level)
-		err := notification.SendNotification(
-			"Battery Low",
-			fmt.Sprintf("%d%% remaining. Please plug in.", batteryState.Level),
-			m.Config,
-		)
-		if err != nil {
-			log.Printf("ERROR: Failed to send low battery notification: %v", err)
-			return NoRun, err
-		}
-
-		if m.Config.EnableSound {
-			err := sound.Play("low", m.Config)
+	if runType == LowBatteryRun {
+		if !m.NotifiedState.Low {
+			logging.Debug("Sending low battery notification (%d%%)", batteryState.Level)
+			err := notification.SendNotification(
+				"Battery Low",
+				fmt.Sprintf("%d%% remaining. Please plug in.", batteryState.Level),
+				m.Config,
+			)
 			if err != nil {
-				log.Printf("WARNING: Failed to play low battery sound: %v", err)
-				// continue even if sound fails
+				logging.Error("Failed to send low battery notification: %v", err)
+				return NoRun, err
 			}
-		}
 
-		m.NotifiedState.Low = true
-		return LowBatteryRun, nil
+			if m.Config.EnableSound {
+				err := sound.Play("low", m.Config)
+				if err != nil {
+					logging.Warn("Failed to play low battery sound: %v", err)
+				}
+			}
+
+			m.NotifiedState.Low = true
+			return LowBatteryRun, nil
+		} else {
+			logging.Debug("Low Battery notification already sent, skipping")
+		}
 	}
 
 	if batteryState.Level > m.Config.LowBattery && m.NotifiedState.Low {
+		logging.Debug("Battery level recovered above low threshold (%d%% > %d%%), resetting low notification state",
+			batteryState.Level, m.Config.LowBattery)
 		m.NotifiedState.Low = false
 		return NoRun, nil
 	}
 
-	if runType == CriticalBatteryRun && !m.NotifiedState.Critical {
-		log.Printf("Sending critical battery notification (%d%%)", batteryState.Level)
-		err := notification.SendNotification(
-			"Battery Critically Low",
-			fmt.Sprintf("%d%% remaining! System may shut down.", batteryState.Level),
-			m.Config,
-		)
-		if err != nil {
-			log.Printf("ERROR: Failed to send critical battery notification: %v", err)
-			return NoRun, err
-		}
-
-		if m.Config.EnableSound {
-			err := sound.Play("low", m.Config)
+	if runType == CriticalBatteryRun {
+		if !m.NotifiedState.Critical {
+			logging.Debug("Sending critical battery notification (%d%%)", batteryState.Level)
+			err := notification.SendNotification(
+				"Battery Critically Low",
+				fmt.Sprintf("%d%% remaining! System may shut down.", batteryState.Level),
+				m.Config,
+			)
 			if err != nil {
-				log.Printf("WARNING: Failed to play critical battery sound: %v", err)
-				// continue even if sound fails
+				logging.Error("Failed to send critical battery notification: %v", err)
+				return NoRun, err
 			}
-		}
 
-		m.NotifiedState.Critical = true
-		return CriticalBatteryRun, nil
+			if m.Config.EnableSound {
+				err := sound.Play("low", m.Config)
+				if err != nil {
+					logging.Warn("Failed to play critical battery sound: %v", err)
+					// continue even if sound fails
+				}
+			}
+
+			m.NotifiedState.Critical = true
+			return CriticalBatteryRun, nil
+		} else {
+
+			logging.Debug("Critical Battery notification already sent, skipping")
+		}
 	}
 
 	if batteryState.Level > m.Config.CriticalBattery && m.NotifiedState.Critical {
+		logging.Debug("Battery level recovered above critical threshold (%d%% > %d%%), resetting critical notification state",
+			batteryState.Level, m.Config.CriticalBattery)
 		m.NotifiedState.Critical = false
 		return NoRun, nil
 	}
 
-	if runType == OverchargeLimitRun && !m.NotifiedState.Overcharge {
-		log.Printf("Sending overcharge notification (%d%%)", batteryState.Level)
-		err := notification.SendNotification(
-			"Battery Overcharging",
-			fmt.Sprintf(
-				"%d%% charged. Consider unplugging to preserve battery health.",
-				batteryState.Level,
-			),
-			m.Config,
-		)
-		if err != nil {
-			log.Printf("ERROR: Failed to send overcharge notification: %v", err)
-			return NoRun, nil
-		}
-
-		if m.Config.EnableSound {
-			err := sound.Play("overcharge", m.Config)
+	if runType == OverchargeLimitRun {
+		if !m.NotifiedState.Overcharge {
+			logging.Debug("Sending overcharge notification (%d%%)", batteryState.Level)
+			err := notification.SendNotification(
+				"Battery Overcharging",
+				fmt.Sprintf(
+					"%d%% charged. Consider unplugging to preserve battery health.",
+					batteryState.Level,
+				),
+				m.Config,
+			)
 			if err != nil {
-				log.Printf("WARNING: Failed to play overcharge sound: %v", err)
-				// continue even if sound fails
+				logging.Error("Failed to send overcharge notification: %v", err)
+				return NoRun, nil
 			}
-		}
 
-		m.NotifiedState.Overcharge = true
-		return OverchargeLimitRun, nil
+			if m.Config.EnableSound {
+				err := sound.Play("overcharge", m.Config)
+				if err != nil {
+					logging.Warn("Failed to play overcharge sound: %v", err)
+					// continue even if sound fails
+				}
+			}
+
+			m.NotifiedState.Overcharge = true
+			return OverchargeLimitRun, nil
+		} else {
+			logging.Debug("Overcharge notification already sent, skipping")
+		}
 	}
 
 	if batteryState.Level < m.Config.OverchargeLimit && m.NotifiedState.Overcharge {
+		logging.Debug("Battery level dropped below overcharge threshold (%d%% < %d%%), resetting overcharge notification state",
+			batteryState.Level, m.Config.OverchargeLimit)
 		m.NotifiedState.Overcharge = false
 		return NoRun, nil
 	}
@@ -174,27 +202,28 @@ func (m *Monitor) ProcessNotifications() (RunType, error) {
 
 // continuous monitoring of battery state
 func (m *Monitor) StartMonitoring() {
-	log.Printf("Starting battery monitoring with %d second intervals", m.Config.CheckInterval)
+	logging.Debug("Starting battery monitoring with %d second intervals", m.Config.CheckInterval)
 
 	for {
+		logging.Info("Running battery check")
 		runType, err := m.ProcessNotifications()
 		if err != nil {
-			log.Printf("ERROR: Monitoring failed: %v", err)
-			fmt.Println(err)
+			logging.Error("Monitoring failed: %v", err)
 			return
 		}
+		logging.Info("Run: %s", runType)
 
-		fmt.Printf("Run: %s\n", runType)
+		logging.Trace("Sleeping for %d seconds", m.Config.CheckInterval)
 		time.Sleep(time.Duration(m.Config.CheckInterval) * time.Second)
 	}
 }
 
 // dry-run
 func (m *Monitor) RunOnce() (RunType, error) {
-	log.Println("Running battery check (dry-run mode)")
+	logging.Info("Running battery check (dry-run mode)")
 	runType, err := m.ProcessNotifications()
 	if err != nil {
-		log.Printf("ERROR: Dry-run failed: %v", err)
+		logging.Error("Dry-run failed: %v", err)
 	}
 	return runType, err
 }

@@ -5,13 +5,13 @@ import (
 	_ "embed"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/akryptic/battery-notifier/internal/config"
+	"github.com/akryptic/battery-notifier/internal/logging"
 	"github.com/faiface/beep"
 	"github.com/faiface/beep/effects"
 	"github.com/faiface/beep/mp3"
@@ -27,7 +27,10 @@ var (
 )
 
 func Play(soundType string, conf *config.Config) error {
+	logging.Trace("Playing sound: type='%s', volume=%d", soundType, conf.SoundVolume)
+
 	if !conf.EnableSound {
+		logging.Trace("Sound disabled in config, skipping playback")
 		return nil
 	}
 
@@ -36,10 +39,11 @@ func Play(soundType string, conf *config.Config) error {
 
 	switch soundType {
 	case "low":
+		logging.Trace("Loading low battery sound")
 		if conf.LowSoundFile != "" {
 			soundData, err = os.ReadFile(conf.LowSoundFile)
 			if err != nil {
-				log.Printf("ERROR: Failed to read custom low sound file '%s': %v", conf.LowSoundFile, err)
+				logging.Error("Failed to read custom low sound file '%s': %v", conf.LowSoundFile, err)
 				return fmt.Errorf("failed to read low sound file: %w", err)
 			}
 		} else {
@@ -49,20 +53,22 @@ func Play(soundType string, conf *config.Config) error {
 		if conf.OverchargeSoundFile != "" {
 			soundData, err = os.ReadFile(conf.OverchargeSoundFile)
 			if err != nil {
-				log.Printf("ERROR: Failed to read custom overcharge sound file '%s': %v", conf.OverchargeSoundFile, err)
+				logging.Error("Failed to read custom overcharge sound file '%s': %v", conf.OverchargeSoundFile, err)
 				return fmt.Errorf("failed to read overcharge sound file: %w", err)
 			}
 		} else {
 			soundData = overchargeDefaultSound
 		}
 	default:
-		log.Printf("ERROR: Invalid sound type requested: %s", soundType)
+		logging.Error("Invalid sound type requested: %s", soundType)
 		return fmt.Errorf("invalid sound type: %s", soundType)
 	}
 
+	logging.Trace("Sound data loaded, size: %d bytes", len(soundData))
+
 	err = playBytes(soundData, conf.SoundVolume)
 	if err != nil {
-		log.Printf("ERROR: Sound playback failed: %v", err)
+		logging.Error("Sound playback failed: %v", err)
 		return err
 	}
 
@@ -70,12 +76,15 @@ func Play(soundType string, conf *config.Config) error {
 }
 
 func playBytes(data []byte, vol int) error {
+
+	logging.Trace("Starting playback of %d bytes at volume %d", len(data), vol)
+
 	soundReader := bytes.NewReader(data)
 	closer := io.NopCloser(soundReader)
 
 	streamer, format, err := mp3.Decode(closer)
 	if err != nil {
-		log.Printf("ERROR: Failed to decode MP3 data: %v", err)
+		logging.Error("Failed to decode MP3 data: %v", err)
 		return fmt.Errorf("failed to decode sound file, ensure it's an MP3: %w", err)
 	}
 
@@ -83,11 +92,13 @@ func playBytes(data []byte, vol int) error {
 
 	err = initSpeakerWithTimeout(format)
 	if err != nil {
-		log.Printf("ERROR: Failed to initialize speaker: %v", err)
+		logging.Error("Failed to initialize speaker: %v", err)
 		return fmt.Errorf("audio system unavailable: %w", err)
 	}
 
 	volumeDB := userVolumeToDB(vol)
+
+	logging.Trace("Volume converted: %d%% -> %.2f dB", vol, volumeDB)
 
 	volumeControlledStreamer := &effects.Volume{
 		Streamer: streamer,
@@ -103,12 +114,13 @@ func playBytes(data []byte, vol int) error {
 		time.Sleep(10 * time.Second)
 		select {
 		case timeout <- true:
-			log.Println("WARNING: Audio playback timed out after 10 seconds")
 		default:
 		}
 	}()
 
+	logging.Trace("Clearing audio speaker")
 	speaker.Clear()
+	logging.Debug("Starting audio playback")
 	speaker.Play(beep.Seq(volumeControlledStreamer, beep.Callback(func() {
 		select {
 		case done <- true:
@@ -118,9 +130,12 @@ func playBytes(data []byte, vol int) error {
 
 	select {
 	case <-done:
+		speaker.Clear()
+		logging.Trace("Audio playback completed")
 		return nil
 	case <-timeout:
-		log.Println("WARNING: Sound playback timed out - likely running without audio session")
+		logging.Warn("Sound playback timed out - likely running without audio session")
+		logging.Trace("Clearing audio speaker")
 		speaker.Clear()
 		return fmt.Errorf("audio playback timed out - no audio session available")
 	}
@@ -130,6 +145,7 @@ var speakerInitOnce sync.Once
 var speakerInitError error
 
 func initSpeakerWithTimeout(format beep.Format) error {
+	logging.Trace("Initializing speaker (first time)")
 	speakerInitOnce.Do(func() {
 		done := make(chan bool, 1)
 		timeout := make(chan bool, 1)
@@ -145,7 +161,7 @@ func initSpeakerWithTimeout(format beep.Format) error {
 		go func() {
 			defer func() {
 				if r := recover(); r != nil {
-					log.Printf("ERROR: Speaker initialization failed: %v", r)
+					logging.Error("Speaker initialization failed: %v", r)
 					speakerInitError = fmt.Errorf("speaker initialization failed: %v", r)
 				}
 				select {
@@ -154,14 +170,16 @@ func initSpeakerWithTimeout(format beep.Format) error {
 				}
 			}()
 
+			logging.Trace("Calling speaker.Init with sample rate: %d", format.SampleRate)
 			speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
 		}()
 
 		select {
 		case <-done:
 			// initialization completed (successfully or with panic)
+			logging.Trace("Speaker.Init completed successfully or with panic")
 		case <-timeout:
-			log.Println("ERROR: Speaker initialization timed out")
+			logging.Error("Speaker initialization timed out")
 			speakerInitError = fmt.Errorf("speaker initialization timed out")
 		}
 	})
